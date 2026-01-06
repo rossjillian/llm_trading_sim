@@ -181,7 +181,7 @@ def run_scenario(
             lendable_shares=params.get("LENDABLE_SHARES", 0),
             agent_params=params["AGENT_PARAMS"],
             dividend_params=None,  # Per-stock dividend params in stock_configs
-            model_open_ai=params["MODEL_OPEN_AI"],
+            model=params["MODEL_OPEN_AI"],
             interest_params=params["INTEREST_MODEL"],
             enable_intra_round_margin_checking=params.get("ENABLE_INTRA_ROUND_MARGIN_CHECKING", False),
             fundamental_info_mode=params["FUNDAMENTAL_INFO_MODE"],
@@ -203,7 +203,7 @@ def run_scenario(
             lendable_shares=params.get("LENDABLE_SHARES", 0),
             agent_params=params["AGENT_PARAMS"],
             dividend_params=params["DIVIDEND_PARAMS"],
-            model_open_ai=params["MODEL_OPEN_AI"],
+            model=params["MODEL_OPEN_AI"],
             interest_params=params["INTEREST_MODEL"],
             fundamental_info_mode=params["FUNDAMENTAL_INFO_MODE"],
             infinite_rounds=params["INFINITE_ROUNDS"],

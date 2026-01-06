@@ -16,13 +16,13 @@ class LLMAgent(BaseAgent):
     MEMORY_DISPLAY_LIMIT = 10  # Number of recent notes to show in prompts (prevents prompt bloat)
 
     def __init__(self, agent_id: str, agent_type: str,
-                 model_open_ai: str = "gpt-oss-20b",
+                 model: str = "gpt-oss-20b",
                  enabled_features: Set[Feature] = None,
                  fundamental_info_mode: FundamentalInfoMode = FundamentalInfoMode.FULL,
                  *args, **kwargs):  # Usually set via scenario params
         super().__init__(agent_id, *args, **kwargs)
         self.agent_type = AGENT_TYPES[agent_type]
-        self.model = model_open_ai
+        self.model = model
         self._formatter = MarketStateFormatter()
         self._llm_service = LLMService()
 

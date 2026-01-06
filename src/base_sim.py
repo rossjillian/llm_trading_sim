@@ -63,7 +63,7 @@ class BaseSimulation:
                  agent_params: dict = None,
                  hide_fundamental_price: bool = True,  # DEPRECATED: use fundamental_info_mode
                  fundamental_info_mode: Optional[FundamentalInfoMode] = None,
-                 model_open_ai = "gpt-oss-20b",  # Usually set via DEFAULT_PARAMS from .env
+                 model = "gpt-oss-20b",  # Usually set via DEFAULT_PARAMS from .env
                  dividend_params: dict = None,
                  interest_params: dict = None,
                  borrow_params: dict = None,
@@ -132,7 +132,7 @@ class BaseSimulation:
         # Basic simulation parameters
         self.fundamental_volatility = fundamental_volatility
         self.news_enabled = news_enabled
-        self.model_open_ai = model_open_ai
+        self.model = model
 
         # Fundamental info mode: controls what agents see
         # Handle backwards compatibility with hide_fundamental_price
@@ -532,7 +532,7 @@ class BaseSimulation:
             return DETERMINISTIC_AGENTS[agent_type](**base_params)
 
         # Set model name for hold_llm agent, or use type-specific model override
-        model = "hold_llm" if agent_type == "hold_llm" else type_specific_params.get('model', self.model_open_ai)
+        model = "hold_llm" if agent_type == "hold_llm" else type_specific_params.get('model', self.model)
 
         # Extract enabled features from agent_params
         from agents.LLMs.services.schema_features import FeatureRegistry
@@ -542,7 +542,7 @@ class BaseSimulation:
         return LLMAgent(
             **base_params,
             agent_type=agent_type,
-            model_open_ai=model,
+            model=model,
             enabled_features=enabled_features,
             fundamental_info_mode=self.fundamental_info_mode
         )

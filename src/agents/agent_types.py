@@ -543,6 +543,12 @@ You believe that being first to correctly interpret and act on news gives you an
         user_prompt_template="",
         type_id="market_maker_sell"
     ),
+    "noise_trader": AgentType(
+        name="Noise Trader",
+        system_prompt="Deterministic agent - no prompt needed",
+        user_prompt_template="",
+        type_id="noise_trader"
+    ),
     "hold_trader": AgentType(
         name="Always Hold Trader",
         system_prompt="Deterministic agent - no prompt needed",
