@@ -1,8 +1,13 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List, Literal, Set
 import openai
+import anthropic
+import together
+import httpx
 import time
 import logging
+import json
+import os
 from agents.agents_api import TradeDecision, OrderDetails
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -41,23 +46,75 @@ class LLMResponse:
 
 class LLMService:
     """Pure service for LLM interactions"""
-    
+
     def __init__(self):
+        """
+        Initialize LLM service with specified provider.
+
+        Args:
+            provider: One of "openai", "claude", or "together"
+        """
         load_dotenv()  # Load API key from .env
-
-        # Initialize OpenAI client with configured base_url and timeout
-        # (base_url set in scenarios/base.py - non-sensitive config)
-        # Use httpx timeout for reliable request timeout (20s default)
-        import httpx
-        timeout_config = httpx.Timeout(20.0, connect=10.0)
-        if DEFAULT_LLM_BASE_URL:
-            self.client = openai.OpenAI(base_url=DEFAULT_LLM_BASE_URL, timeout=timeout_config)
-        else:
-            self.client = openai.OpenAI(timeout=timeout_config)
-
         self.seed = 42
+        
+    def call_anthropic(self, messages: dict) -> str:
+        """Call Anthropic API with given prompt"""
+        response = self.anthropic_client.messages.create(
+            model=self.model,
+            max_tokens_to_sample=1000,
+            messages=messages
+        )
+        return response.choices[0].message.content
+    
+    def call_together(self, messages: dict) -> str:
+        """Call Together.ai API with given prompt"""
+        response = self.together_client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+    
+    def call_openai(self, messages: dict) -> str:
+        """Call OpenAI API with given prompt"""
+        response = self.openai_client.responses.create(
+            model=self.model,
+            input=messages,
+            max_tokens=1000,
+            temperature=0.7
+        )
+        return response.output_text
     
     def get_decision(self, request: LLMRequest) -> LLMResponse:
+        if request.model.startswith("gpt-"):
+            timeout_config = httpx.Timeout(20.0, connect=10.0)
+            if DEFAULT_LLM_BASE_URL:
+                self.openai_client = openai.OpenAI(base_url=DEFAULT_LLM_BASE_URL, timeout=timeout_config)
+            else:
+                self.openai_client = openai.OpenAI(timeout=timeout_config)
+            self.client = self.openai_client
+        elif request.model.startswith("claude"):
+            # Initialize Anthropic client for Claude API
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+            self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+            self.client = self.anthropic_client
+        else:
+            # Together.ai supports OpenAI-compatible API
+            api_key = os.getenv("TOGETHER_API_KEY")
+            if not api_key:
+                raise ValueError("TOGETHER_API_KEY not found in environment variables")
+            import httpx
+            timeout_config = httpx.Timeout(20.0, connect=10.0)
+            self.together_client = openai.OpenAI(
+                api_key=api_key,
+                base_url="https://api.together.xyz/v1",
+                timeout=timeout_config
+            )
+            self.client = self.together_client
+
         """Get decision from LLM using dynamic schema based on enabled features"""
         # Special case for hold_llm agent type to avoid API calls
         if request.model == "hold_llm":
@@ -120,13 +177,12 @@ IMPORTANT: This is a MULTI-STOCK scenario. You MUST include stock_id for each or
         for attempt in range(max_retries):
             try:
                 logger.warning(f"[LLM_CALL] Agent {request.agent_id} R{request.round_number}: Calling {request.model} (~{prompt_len//4} tokens){'...' if attempt == 0 else f' (retry {attempt})...'}")
-                completion = self.client.beta.chat.completions.parse(
-                    model=request.model,
-                    messages=messages,
-                    response_format=dynamic_schema,
-                    temperature=0.0,
-                    seed=self.seed
-                )
+                if self.provider == 'openai':
+                    completion = self.call_openai(messages, parse_schema=dynamic_schema)
+                elif self.provider == 'claude':
+                    completion = self.call_anthropic(messages, parse_schema=dynamic_schema)
+                elif self.provider == 'together':
+                    completion = self.call_together(messages, parse_schema=dynamic_schema)
                 elapsed = time.time() - start_time
                 logger.warning(f"[LLM_CALL] Agent {request.agent_id} R{request.round_number}: Response in {elapsed:.1f}s")
                 break  # Success, exit retry loop
